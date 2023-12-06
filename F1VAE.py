@@ -1,7 +1,9 @@
-from typing import Dict, Callable, List
+from typing import Dict, List
 import logging
 
 # create logger
+logging.basicConfig()
+
 logger = logging.getLogger("F1VAE")
 logger.setLevel(logging.DEBUG)
 
@@ -17,6 +19,8 @@ class Fdef():
         self.f_name = f_name
         self.par_name = par_name
         self.body = body
+    def __str__(self) -> str:
+        return f"Fdef({self.f_name}, {self.par_name}, {self.body})"
 
 FDs = List[Fdef]
 
@@ -78,19 +82,23 @@ class UnknownFunction(InterPreterException):
 def interp(expr : Expression, env: Env, fs: FDs) -> int:
     logger.debug(f"calling interp with {expr=!s} {env=!s} {fs=!s}")
     if isinstance(expr, Num):
+        logger.debug("calling Num")
         return expr.n
     elif isinstance(expr, Add):
         logger.debug("calling Add")
-        print("Add")
         return interp(expr.left, env, fs) + interp(expr.right, env, fs)
     elif isinstance(expr, Sub):
+        logger.debug("calling Sub")
         return interp(expr.left, env, fs) - interp(expr.right, env, fs)
     elif isinstance(expr, Id):
+        logger.debug("calling Id")
         return lookup(expr.name, env)
     elif isinstance(expr, Val):
+        logger.debug("calling Val")
         res = interp(expr.expr, env, fs)
         return interp(expr.body, dict(env, **{expr.name : res}), fs)
     elif isinstance(expr, App):
+        logger.debug("calling App")
         func = lookupFD(expr.f_name, fs)
         aval = interp(expr.val, env, fs)
         return interp(func.body, {func.par_name: aval}, fs) # static scope
@@ -98,6 +106,10 @@ def interp(expr : Expression, env: Env, fs: FDs) -> int:
 
 def lookupFD(f_name: str, fds: FDs) -> Fdef:
     logger.debug(f"lookupFD called: {f_name=!s} {fds=!s}")
+    
+    """
+    book version
+
     if fds == []:
         raise UnknownFunction(f"lookupFD - Unknown function: {f_name}")
     else:
@@ -108,13 +120,13 @@ def lookupFD(f_name: str, fds: FDs) -> Fdef:
 
     """
     # pythonic version
-    # l = [f for f in fds if f_name == f.f_name]
+    l = [f for f in fds if f_name == f.f_name]
     
     if len(l) == 0:
         raise UnknownFunction(f"Unknown function: {f_name}")
     else:
         return l[0]
-    """
+    
 
 def lookup(var_name:str, env: Env):
     logger.debug(f"lookup called with {var_name=!s} {env=!s}")
