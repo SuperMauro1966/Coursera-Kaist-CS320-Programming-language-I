@@ -16,12 +16,13 @@ class Sub(Expression):
         self.right = right
 
 def interp(expr : Expression):
-    if isinstance(expr, Num):
-        return expr.n
-    elif isinstance(expr, Add):
-        return interp(expr.left) + interp(expr.right)
-    elif isinstance(expr, Sub):
-        return interp(expr.left) - interp(expr.right)
+    match expr:
+        case Num(n=n):
+            return n
+        case Add(left=left, right=right):
+            return interp(left) + interp(right)
+        case Sub(left=left, right=right):
+            return interp(left) - interp(right)
     
 if __name__ == "__main__":
     assert interp(Num(10)) == 10
