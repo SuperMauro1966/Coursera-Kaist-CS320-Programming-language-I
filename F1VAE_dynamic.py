@@ -68,7 +68,6 @@ class Call(Expression):
         return f"Call({self.f}, {self.a!s})"
 
 # execution exception
-# exception
 class InterPreterException(Exception):
     pass
 
