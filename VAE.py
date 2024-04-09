@@ -52,19 +52,20 @@ class Val(Expression):
         return f"Val({self.name!s}, {self.expr!s}, {self.body!s})"
     
 def interp(expr : Expression, env: Env) -> int:
-    if isinstance(expr, Num):
-        return expr.n
-    elif isinstance(expr, Add):
-        return interp(expr.left, env) + interp(expr.right, env)
-    elif isinstance(expr, Sub):
-        return interp(expr.left, env) - interp(expr.right, env)
-    elif isinstance(expr, Id):
-        return lookup(expr.name, env)
-    elif isinstance(expr, Val):
-        res = interp(expr.expr, env)
-        return interp(expr.body, dict(env, **{expr.name : res}))
-    else:
-        raise UnknownStatementException(f"Unknown statement {expr}")
+    match expr:
+        case Num(n=n):
+            return n
+        case Add(left=left, right=right):
+            return interp(left, env) + interp(right, env)
+        case Sub(left=left, right=right):
+            return interp(left, env) - interp(right, env)
+        case Id(name=name):
+            return lookup(name, env)
+        case Val(name=name, expr=expr, body=body):
+            res = interp(expr, env)
+            return interp(body, dict(env, **{name : res}))
+        case _:
+            raise UnknownStatementException(f"Unknown statement {expr}")
     
 def lookup(var_name:str, env: Env):
     try:
