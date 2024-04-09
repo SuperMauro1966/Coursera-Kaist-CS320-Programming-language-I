@@ -10,20 +10,22 @@ logger.setLevel(logging.DEBUG)
 # type of environment
 Env = Dict[str, int]
 
+# Expression
 class Expression():
     pass
 
 # type of functions
-class Fdef():
+class FunDef():
     def __init__(self, f_name:str, par_name: str, body: Expression):
         self.f_name = f_name
         self.par_name = par_name
         self.body = body
     def __str__(self) -> str:
-        return f"Fdef({self.f_name}, {self.par_name}, {self.body})"
+        return f"FunDef({self.f_name}, {self.par_name}, {self.body})"
 
-FDs = List[Fdef]
+FEnv = Dict[str, FunDef]
 
+# Expression classes
 class Num(Expression):
     def __init__(self, n:int):
         self.n = n
@@ -58,12 +60,12 @@ class Val(Expression):
     def __str__(self) -> str:
         return f"Val({self.name!s}, {self.expr!s}, {self.body!s})"
 
-class App(Expression):
-    def __init__(self, f_name: str, val: Expression):
-        self.f_name = f_name
-        self.val = val
+class Call(Expression):
+    def __init__(self, f: str, a: Expression):
+        self.f = f
+        self.a = a
     def __str__(self) -> str:
-        return f"App({self.f_name}, {self.val!s})"
+        return f"Call({self.f}, {self.a!s})"
 
 # execution exception
 # exception
@@ -79,55 +81,42 @@ class UnknownStatementException(InterPreterException):
 class UnknownFunction(InterPreterException):
     pass
 
-def interp(expr : Expression, env: Env, fs: FDs) -> int:
+def interp(expr : Expression, env: Env, fs: FEnv) -> int:
     logger.debug(f"calling interp with {expr=!s} {env=!s} {fs=!s}")
-    if isinstance(expr, Num):
-        logger.debug("calling Num")
-        return expr.n
-    elif isinstance(expr, Add):
-        logger.debug("calling Add")
-        return interp(expr.left, env, fs) + interp(expr.right, env, fs)
-    elif isinstance(expr, Sub):
-        logger.debug("calling Sub")
-        return interp(expr.left, env, fs) - interp(expr.right, env, fs)
-    elif isinstance(expr, Id):
-        logger.debug("calling Id")
-        return lookup(expr.name, env)
-    elif isinstance(expr, Val):
-        logger.debug("calling Val")
-        res = interp(expr.expr, env, fs)
-        return interp(expr.body, dict(env, **{expr.name : res}), fs)
-    elif isinstance(expr, App):
-        logger.debug("calling App")
-        func = lookupFD(expr.f_name, fs)
-        aval = interp(expr.val, env, fs)
-        return interp(func.body, {func.par_name: aval}, fs) # static scope
-        # return interp(func.body, dict(env, **{func.f_name: aval}), fs) # dynamic scope
+    match expr:
+        case Num(n=n):
+            logger.debug("calling Num")
+            return n
+        case Add(left=left, right=right):
+            logger.debug("calling Add")
+            return interp(left, env, fs) + interp(right, env, fs)
+        case Sub(left=left, right=right):
+            logger.debug("calling Sub")
+            return interp(left, env, fs) - interp(right, env, fs)
+        case Id(name=name):
+            logger.debug("calling Id")
+            return lookup(name, env)
+        case Val(name=name, expr=expr, body=body):
+            logger.debug("calling Val")
+            res = interp(expr, env, fs)
+            return interp(body, dict(env, **{name : res}), fs)
+        case Call(f=f, a=a):
+            logger.debug("calling Call")
+            func = lookupFD(f, fs)
+            aval = interp(a, env, fs)
+            return interp(func.body, {func.par_name: aval}, fs)
+        case _:
+            raise UnknownStatementException(f"Unknown statement {expr}")
 
-def lookupFD(f_name: str, fds: FDs) -> Fdef:
+
+def lookupFD(f_name: str, fds: FEnv) -> FunDef:
     logger.debug(f"lookupFD called: {f_name=!s} {fds=!s}")
     
-    """
-    book version
-
-    if fds == []:
-        raise UnknownFunction(f"lookupFD - Unknown function: {f_name}")
-    else:
-        if f_name == fds[0].f_name:
-            return fds[0]
-        else:
-            lookupFD(f_name, fds[1:])
-
-    """
-    # pythonic version
-    l = [f for f in fds if f_name == f.f_name]
-    
-    if len(l) == 0:
-        raise UnknownFunction(f"Unknown function: {f_name}")
-    else:
-        return l[0]
-    
-
+    try:
+        return fds[f_name]
+    except KeyError:
+        raise UnknownFunction("unknow function {f_name}")
+        
 def lookup(var_name:str, env: Env):
     logger.debug(f"lookup called with {var_name=!s} {env=!s}")
     try:
@@ -149,10 +138,11 @@ if __name__ == "__main__":
                         Id("x"))), 
                         {}, []) == 10
 
-    fs = [Fdef("double", "x", Add(Id("x"), Id("x")))]
+    fs = dict(double = FunDef("double", "x", Add(Id("x"), Id("x"))))
 
-    assert interp(App("double", Num(10)), {}, fs) == 20
-    assert interp(Add(
-        App("double", Num(10)),
-        Num(3)),
+    assert interp(Call("double", Num(10)), {}, fs) == 20
+    assert interp(
+        Add(
+            Call("double", Num(10)),
+            Num(3)),
         {}, fs) == 23
