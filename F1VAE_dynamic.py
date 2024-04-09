@@ -4,7 +4,7 @@ import logging
 # create logger
 logging.basicConfig()
 
-logger = logging.getLogger("F1VAE")
+logger = logging.getLogger("F1VAE dynamic")
 logger.setLevel(logging.DEBUG)
 
 # type of environment
