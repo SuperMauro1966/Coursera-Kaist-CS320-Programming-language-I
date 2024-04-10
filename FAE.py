@@ -5,7 +5,7 @@ import logging
 # create logger
 logging.basicConfig()
 
-logger = logging.getLogger("FVAE")
+logger = logging.getLogger("FAE")
 logger.setLevel(logging.WARN)
 
 # expression hierarchy
