@@ -113,10 +113,10 @@ def interp(expr : Expression, env: Env) -> Value:
         case Add(left=left, right=right):
             logger.debug("calling Add")
             match interp(left, env):
-                case Num(n=n):
+                case NumV(n=n):
                     match interp(right, env):
-                        case Num(n=m):
-                            return n+m
+                        case NumV(n=m):
+                            return NumV(n+m)
                         case _:
                             raise NotNumExpression("Add - right operand not an integer")
                 case _:
@@ -124,10 +124,10 @@ def interp(expr : Expression, env: Env) -> Value:
         case Sub(left=left, right=right):
             logger.debug("calling Sub")
             match interp(left, env):
-                case Num(n=n):
+                case NumV(n=n):
                     match interp(right, env):
-                        case Num(n=m):
-                            return n+m
+                        case NumV(n=m):
+                            return NumV(n-m)
                         case _:
                             raise NotNumExpression("Sub - right operand not an integer")
                 case _:
@@ -137,19 +137,19 @@ def interp(expr : Expression, env: Env) -> Value:
             return lookup(name, env)
         case Val(name=name, expr=expr, body=body):
             logger.debug("calling Val")
-            return interp(body, dict(env, **{name : interp(expr, env)}), fs)
+            return interp(body, dict(env, **{name : interp(expr, env)}))
         case Fun(par_name=par_name, body=body):
             logger.debug("calling Fun")
             return CloV(par_name, body, env)
         case App(f_expr=f_expr, val=val):
             f = interp(f_expr, env)
             match f:
-                case CloV(par_name=par_name, body=body, env=fenv):
+                case CloV(param=param, body=body, env=fenv):
                     # env = dynamic scop
                     # fenv = static scope
-                    return interp(body, dict(fenv, **{par_name: interp(val, env)}))
+                    return interp(body, dict(fenv, **{param: interp(val, env)}))
                 case _:
-                    raise ClosureError(f"not a closure {f}")
+                    raise ClosureError(f"not a closure: {f}")
         case _:
             raise UnknownStatementException(f"Unknown statement {expr}")
 
