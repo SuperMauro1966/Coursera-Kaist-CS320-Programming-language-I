@@ -1,0 +1,136 @@
+-- sintassi desiderata
+{ 
+    val fac = {
+        n => if0 (n) {1} else { (n * fac((n-1)))} # qui fac non è definita
+    };
+    fac(20)
+}
+
+-- problema: nello scope del corpo di fac, fac non è definita
+
+-- I tentativo di soluzione
+{ 
+    val fac = {
+        n =>  {
+            val fX = { 
+                (fY, n) => if0 (n) {1} else { (n * fY(fY, (n-1)))}
+            };
+            fX(fX, n)
+        }
+    };
+    fac(20)
+}
+
+-- esprimiamo la chiamata alla funzione con doppio parametro
+-- con la corretta sintassi ad un parametro
+
+{ 
+    val fac = {
+        n =>  {
+            val fX = { 
+                fY => {
+                    n => if0 (n) {1} else { (n * fY(fY, (n-1)))}
+                }
+            };
+            fX(fX)(n)
+        }
+    };
+    fac(20)
+}
+
+-- eta reduction rispetto a parametro n (il primo)
+{ 
+    val fac = {
+        val fX = { 
+            fY => {
+                n => if0 (n) {1} else { (n * fY(fY, (n-1)))}
+            }
+        };
+        fX(fX)
+    };
+    fac(20)
+}
+
+-- dobbiamo avvicinarci alla sintassi desiderata: 
+-- se chiamiamo fY(fY) -> fac , abbiamo formalmente quanto cercato
+
+{ 
+    val fac = {
+        val fX = { 
+            fY => {
+                val fac = fY(fY); # errore: entra in loop infinito
+                {n => if0 (n) {1} else { (n * fac(n-1))}}
+            }
+        };
+        fX(fX)
+    };
+    fac(20)
+}
+
+Nota
+fX --> Clov("fY",
+            {                                               |
+                val fac = fY(fY);                           | body della funzione
+                {n => if0 (n) {1} else { (n * fac(n-1))}}   |
+            },                                              |
+            {})
+
+fX(fX) --> interp(Clov("fY",..., {}), {"fY"-> Clov("fY",...,{})})
+--> interpreto val fac = fY(fY)
+--> interpreto expr di fac: fY(fY) 
+--> interp(fY.body, {"fY"-> Clov("fY",...,{})}) # sostanzialmente stiamo chiamando fX
+--> interpreto nuovamente val fac = fY(fY)
+
+-- ovviamo la problema del loop
+-- è necessario che tale funzione fac sia chiamata solo al momento in cui vogliamo attivare
+-- la ricorsione
+
+{ 
+    val fac = {
+        val fX = { 
+            fY => {
+                val fac = { x => fY(fY)(x) }; # lazy evaluation
+                {n => if0 (n) {1} else { (n * fac(n-1))}}
+            }
+        };
+        fX(fX)
+    };
+    fac(20)
+}
+
+-- proviamo con fibonacci
+{ 
+    val fib = {
+        val fX = { 
+            fY => {
+                val fib = { x => fY(fY)(x) }; # lazy evaluation
+                {n => if0 (n) {0} else {if0 ((n -1) {1} else { fib(n-1) + fib(n-2)}) }}
+            }
+        };
+        fX(fX)
+    };
+    fib(20)
+}
+
+-- emerge quindi un determinato pattern
+{
+    val mkRec = {
+        bodyprocess => {
+            val fX = { 
+                fY => {
+                    val f = { x => fY(fY)(x) }; # lazy evaluation
+                    bodyprocess(f)
+                }
+            };
+            fX(fX)   
+        }
+    }
+}
+
+-- con questa nuova funzione esprimiamo nuovamente fac
+{
+    val fac = mkRec(
+        { fac =>  {n => if0 (n) {1} else { (n * fac(n-1))}}
+        });
+    fac(10)
+}
