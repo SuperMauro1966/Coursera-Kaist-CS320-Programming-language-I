@@ -6,7 +6,7 @@ import logging
 logging.basicConfig()
 
 logger = logging.getLogger("FAE")
-logger.setLevel(logging.WARN)
+logger.setLevel(logging.DEBUG)
 
 # expression hierarchy
 class Expression():
@@ -25,6 +25,10 @@ Addr = int
 # type Storage
 Sto = Dict[Addr, Value]
 
+class StorageDict(dict):
+    def __str__(self) -> str:
+        return str([f"{str(key)}: {str(val)}" for key, val in self.items()])
+        
 # types of values
 class NumV(Value):
     def __init__(self, n: int):
@@ -135,14 +139,14 @@ class NotNumExpression(InterPreterException):
 class ClosureError(InterPreterException):
     pass
 
-class BoxException(InterPreterException)
+class BoxException(InterPreterException):
     pass
 
 class BoxValueException():
     pass
 
 def interp(expr : Expression, env: Env, sto: Sto) -> tuple[Value, Sto]:
-    logger.debug(f"calling interp with {expr=!s} {env=!s}")
+    logger.debug(f"calling interp with {expr=!s} {env=!s} {sto=!s}")
     match expr:
         case Num(n=n):
             logger.debug("calling Num")
@@ -181,16 +185,17 @@ def interp(expr : Expression, env: Env, sto: Sto) -> tuple[Value, Sto]:
         case App(f_expr=f_expr, val=val):
             match interp(f_expr, env, sto):
                 case CloV(param=param, body=body, env=fenv), lstore:
-                    v, rstore = interp(v, env, lstore)
+                    v, rstore = interp(val, env, lstore)
                     return interp(body, dict(fenv, **{param: v}), rstore)
                 case _:
                     raise ClosureError(f"not a closure: {f_expr}")
         case NewBox(e=e):
             v, s = interp(e, env, sto)
-            a = max(sto.keys, 0)
-            return BoxV(a), dict(sto, **{a: v})
-        case OpenBox(e=e):
-            match interp(e, env, sto):
+            a =  0 if ((addr := max(s.keys(), default=None)) is None) else addr+1
+            s[a] = v
+            return BoxV(a), s
+        case OpenBox(b=b):
+            match interp(b, env, sto):
                 case BoxV(a=a), s:
                     return s[a], s
                 case _:
@@ -201,21 +206,10 @@ def interp(expr : Expression, env: Env, sto: Sto) -> tuple[Value, Sto]:
                     v, es = interp(e, env, bs)
                     es[a] = v
                     return v, es
+               case _:
+                   raise BoxValueException(f"{b} is not a boxvalue")
         case _:
             raise UnknownStatementException(f"Unknown statement {expr}")
-
-"""
-Note that 
-Val is syntactic sugar for CloV
-
-CloV
-    interp(body, dict(fenv, **{par_name: interp(val, env)}))
-
-Val
-    interp(body, dict(env, **{name : res}))
-
-    { val x = 10; x} è quivalente a ( x => x )(10)
-"""
 
 def lookup(var_name:str, env: Env):
     try:
@@ -233,26 +227,81 @@ numAddV = partial(numOp, lambda x,y: x + y)
 numSubV = partial(numOp, lambda x,y: x - y)
 
 # test section
-assert interp(Num(10), {}).n  == 10
-assert interp(Add(Num(10), Num(20)), {}).n == 30
-assert interp(Sub(Num(10), Num(20)), {}).n == -10
-assert interp(Add(Num(0), Num(3)), {}).n == 3
+if __name__ == "__main__":
+    v, s = interp(Num(10), {}, {})
+    assert v.n == 10
+    print(s)
+    print("-------------------------------------")
 
-assert interp(
-        App(Fun("x", Id("x")), Num(1)),
-      {}).n == 1
+    v, s = interp(Add(Num(10), Num(20)), {}, {})
+    assert v.n == 30
+    print(s)
+    print("-------------------------------------")
 
-assert interp(
-    App(Fun("x", Add(Id("x"), Id("x"))), Num(1)),
-    {}).n == 2
+    v, s = interp(Sub(Num(10), Num(20)), {}, {})
+    assert v.n == -10
+    print(s)
+    print("-------------------------------------")
 
-assert interp(
-    App(Fun("x", 
-            Add(
-                App(Fun("x", Add(Id("x"), Num(5))), Num(4)),
-                Id("x"))
-            ), 
-        Num(1)), {}).n  == 10
+    v, s = interp(Add(Num(0), Num(3)), {}, {})
+    assert v.n == 3
+    print(s)
+    print("-------------------------------------")
 
-assert interp(App(Fun("x", Add(Id("x"), Num(10))), Num(5)), {}).n == 15 
-# interp(App(Fun("x", Add(Id("x"), Num(10))), Num(5)), {})
+    v, s = interp(
+            App(Fun("x", Id("x")), Num(1)),
+        {}, {})
+    assert v.n == 1
+    print(s)
+    print("-------------------------------------")
+
+    v, s = interp(
+                App(Fun("x", Add(Id("x"), Id("x"))), Num(1)),
+                {}, {})
+    v.n == 2
+    print(s)
+    print("-------------------------------------")
+
+    v, s = interp(
+        App(Fun("x", 
+                Add(
+                    App(Fun("x", Add(Id("x"), Num(5))), Num(4)),
+                    Id("x"))
+                ), 
+            Num(1)), {}, {})
+    assert v.n == 10
+    print(s)
+    print("-------------------------------------")
+
+    v, s = interp(App(Fun("x", Add(Id("x"), Num(10))), Num(5)), {}, {})
+    assert v.n == 15
+    print(s)
+    print("-------------------------------------")
+
+    sto = StorageDict()
+    v, s = interp(NewBox(Num(5)), {}, sto)
+    # assert v == 5
+    assert s[0].n == 5
+    print(s)
+    del sto
+    print("-------------------------------------")
+
+    sto = StorageDict()
+    v, s = interp(OpenBox(NewBox(Num(5))), {}, sto)
+    assert v.n == 5
+    print(s)
+    del sto
+    print("-------------------------------------")
+
+    sto = StorageDict()
+    v, s = interp(
+        OpenBox(
+            Seqn(NewBox(Num(5)), 
+                 NewBox(Num(10)))), {}, sto)
+    
+    assert v.n == 10
+    assert s[0].n == 5
+    assert s[1].n == 10
+    print(s)
+    del sto
+    print("-------------------------------------")
