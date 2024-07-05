@@ -72,7 +72,27 @@ def lookup(var_name:str, env: Env):
         return env[var_name]
     except KeyError:
         raise FreeIdentifierError(f"free identifier {var_name}")
-    
+
+def shadowing(e: Expression) -> set[str]:
+    def helper(e: Expression, env: set[str]) -> set[str]:
+        print(f"{env=}")
+        match e:
+            case Num(n=n):
+                return env
+            case Add(left=left, right=right):
+                return helper(left, env) | helper(right, env)
+            case Sub(left=left, right=right):
+                return helper(left, env) | helper(right, env)
+            case Id(name=name):
+                return env
+            case Val(name=name, expr=expr, body=body):
+                shad = helper(expr, env)
+                return env | shad | helper(body, env | {name}) | set() if name not in env else {name}
+            case _:
+                raise UnknownStatementException(f"Unknown statement {e}")
+        
+    return helper(e, set())
+
 if __name__ == "__main__":
     assert interp(Num(10), {} ) == 10
     assert interp(Add(Num(10), Num(20)), {}) == 30
@@ -86,3 +106,34 @@ if __name__ == "__main__":
                         Val("x",Num(4),Add(Id("x"), Num(5))),
                         Id("x"))), 
                         {}) == 10
+    
+    print(shadowing(Val("x", 
+                         Num(20),
+                         Val("x", 
+                             Num(1),
+                             Add(Id("x"), Num(40)))
+                         )))
+    
+    assert shadowing(Val("x", 
+                         Num(20),
+                         Val("x", 
+                             Num(1),
+                             Add(Id("x"), Num(40)))
+                         )) == set("x")
+    
+    print(
+        shadowing(
+            Val("x",
+                Val("y",
+                    Val("z",
+                        Val("y",
+                            Num(5),
+                            Add(Id("y"), Num(10))),
+                        Val("z",
+                            Num(3),
+                            Add(Id("z"), Num(4)))),
+                    Val("x", 
+                        Num(5),
+                        Add(Id("x"), Add(Num(8), Id("y"))))),
+                Add(Id("x"), Num(5))))
+        )
