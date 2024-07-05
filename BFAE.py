@@ -104,6 +104,7 @@ class OpenBox(Expression):
     
 class SetBox(Expression):
     def __init__(self, b: Expression, e: Expression) -> None:
+        self.b = b
         self.e = e
     def __str__(self) -> str:
         return f"SetBox({self.b}, {self.e})"
@@ -142,7 +143,7 @@ class ClosureError(InterPreterException):
 class BoxException(InterPreterException):
     pass
 
-class BoxValueException():
+class BoxValueException(InterPreterException):
     pass
 
 def interp(expr : Expression, env: Env, sto: Sto) -> tuple[Value, Sto]:
@@ -199,7 +200,7 @@ def interp(expr : Expression, env: Env, sto: Sto) -> tuple[Value, Sto]:
                 case BoxV(a=a), s:
                     return s[a], s
                 case _:
-                    raise BoxValueException(f"{e}!r not a box value")
+                    raise BoxValueException(f"{b!r} not a box value")
         case SetBox(b=b, e=e):
            match interp(b, env, sto):
                case BoxV(a=a), bs:
@@ -207,7 +208,7 @@ def interp(expr : Expression, env: Env, sto: Sto) -> tuple[Value, Sto]:
                     es[a] = v
                     return v, es
                case _:
-                   raise BoxValueException(f"{b} is not a boxvalue")
+                   raise BoxValueException(f"{b!r} is not a boxvalue")
         case _:
             raise UnknownStatementException(f"Unknown statement {expr}")
 
@@ -302,6 +303,20 @@ if __name__ == "__main__":
     assert v.n == 10
     assert s[0].n == 5
     assert s[1].n == 10
+    print(s)
+    del sto
+    print("-------------------------------------")
+
+
+    sto = StorageDict()
+    v, s = interp(
+            SetBox(
+                NewBox(Num(5)),
+                Add(Num(10),Num(7))),
+                {}, sto)
+    
+    assert v.n == 17
+    assert s[0].n == 17
     print(s)
     del sto
     print("-------------------------------------")
