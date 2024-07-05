@@ -75,7 +75,6 @@ def lookup(var_name:str, env: Env):
 
 def shadowing(e: Expression) -> set[str]:
     def helper(e: Expression, env: set[str]) -> set[str]:
-        print(f"{env=}")
         match e:
             case Num(n=n):
                 return env
@@ -90,7 +89,7 @@ def shadowing(e: Expression) -> set[str]:
                 return env | shad | helper(body, env | {name}) | set() if name not in env else {name}
             case _:
                 raise UnknownStatementException(f"Unknown statement {e}")
-        
+
     return helper(e, set())
 
 if __name__ == "__main__":
@@ -106,14 +105,7 @@ if __name__ == "__main__":
                         Val("x",Num(4),Add(Id("x"), Num(5))),
                         Id("x"))), 
                         {}) == 10
-    
-    print(shadowing(Val("x", 
-                         Num(20),
-                         Val("x", 
-                             Num(1),
-                             Add(Id("x"), Num(40)))
-                         )))
-    
+        
     assert shadowing(Val("x", 
                          Num(20),
                          Val("x", 
@@ -121,7 +113,7 @@ if __name__ == "__main__":
                              Add(Id("x"), Num(40)))
                          )) == set("x")
     
-    print(
+    assert \
         shadowing(
             Val("x",
                 Val("y",
@@ -135,5 +127,5 @@ if __name__ == "__main__":
                     Val("x", 
                         Num(5),
                         Add(Id("x"), Add(Num(8), Id("y"))))),
-                Add(Id("x"), Num(5))))
-        )
+                Add(Id("x"), Num(5)))) == {"x", "y", "z"}
+         
