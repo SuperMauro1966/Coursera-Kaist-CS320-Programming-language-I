@@ -2,6 +2,8 @@ from typing import Dict, Callable, List
 from functools import partial
 import logging
 
+# exercise 9.4
+
 # create logger
 logging.basicConfig()
 
