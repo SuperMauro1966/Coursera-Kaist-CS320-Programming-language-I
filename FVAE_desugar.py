@@ -106,6 +106,9 @@ class NotNumExpression(InterPreterException):
 class ClosureError(InterPreterException):
     pass
 
+class DesugarError(InterPreterException):
+    pass
+
 def interp(expr : Expression, env: Env) -> Value:
     logger.debug(f"calling interp with {expr=!s} {env=!s}")
     expr = desugar(expr)
@@ -197,10 +200,12 @@ def desugar(e : Expression) -> Expression:
             return Sub(desugar(left), desugar(right))
         case Val(name=name, expr=expr, body=body):
             return App(Fun(name, desugar(body)), desugar(expr))
-        case Fun():
-            return e
-        case App():
-            return e
+        case Fun(par_name=par_name, body=body):
+            return Fun(par_name, desugar(body))
+        case App(f_expr=f_expr, val=val):
+            return App(desugar(f_expr), desugar(val))
+        case _:
+            raise DesugarError(f"Unknown expression {e}")
 
 # test section
 assert interp(Num(10), {}).n  == 10
