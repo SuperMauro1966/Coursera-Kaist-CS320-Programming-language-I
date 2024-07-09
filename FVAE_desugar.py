@@ -3,6 +3,7 @@ from functools import partial
 import logging
 
 # exercise 9.4
+# exercise 9.5
 
 # create logger
 logging.basicConfig()
@@ -85,6 +86,26 @@ class Fun(Expression):
     def __str__(self) -> str:
         return f"Fun({self.par_name}, {self.body})"
 
+class Pair(Expression):
+    def __init__(self, f: Expression, s: Expression) -> None:
+        self.f = f
+        self.s = s
+    def __str__(self) -> str:
+        return f"Pair({self.f}, {self.s})"
+
+
+class First(Expression):
+    def __init__(self, e: Expression) -> None:
+        self.e = e
+    def __str__(self) -> str:
+        return f"First({self.e})"
+
+class Second(Expression):
+    def __init__(self, e: Expression) -> None:
+        self.e = e
+    def __str__(self) -> str:
+        return f"Second({self.e})"
+
 NumFunc = Callable[[int, int], int]
 
 # exceptions
@@ -110,8 +131,11 @@ class DesugarError(InterPreterException):
     pass
 
 def interp(expr : Expression, env: Env) -> Value:
-    logger.debug(f"calling interp with {expr=!s} {env=!s}")
     expr = desugar(expr)
+    return helper_interp(expr, env)
+
+def helper_interp(expr : Expression, env: Env) -> Value:
+    logger.debug(f"calling interp with {expr=!s} {env=!s}")
     match expr:
         case Num(n=n):
             logger.debug("calling Num")
@@ -204,6 +228,21 @@ def desugar(e : Expression) -> Expression:
             return Fun(par_name, desugar(body))
         case App(f_expr=f_expr, val=val):
             return App(desugar(f_expr), desugar(val))
+        case First(e=e):
+            return App(desugar(e), Fun("x", Fun("y", Id("x"))))
+        case Second(e=e):
+            return App(desugar(e), Fun("x", Fun("y", Id("y"))))
+        case Pair(f=f, s=s):
+            return App(
+                        App(Fun("f",
+                                Fun("s",
+                                    Fun("eval",
+                                        App(
+                                            App(Id("eval"),
+                                                Id("f")),
+                                            Id("s"))))),
+                            desugar(f)),
+                        desugar(s))
         case _:
             raise DesugarError(f"Unknown expression {e}")
 
@@ -222,4 +261,6 @@ assert interp(Val("x",Num(1),
                     {}).n  == 10
 
 assert interp(App(Fun("x", Add(Id("x"), Num(10))), Num(5)), {}).n == 15 
-# interp(App(Fun("x", Add(Id("x"), Num(10))), Num(5)), {})
+
+assert interp(First(Pair(Num(1), Num(2))), {}).n == 1
+assert interp(Second(Pair(Num(1), Num(2))), {}).n == 2
