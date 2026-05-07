@@ -77,16 +77,16 @@ def shadowing(e: Expression) -> set[str]:
     def helper(e: Expression, env: set[str]) -> set[str]:
         match e:
             case Num(n=n):
-                return env
+                return set()
             case Add(left=left, right=right):
                 return helper(left, env) | helper(right, env)
             case Sub(left=left, right=right):
                 return helper(left, env) | helper(right, env)
             case Id(name=name):
-                return env
+                return set()
             case Val(name=name, expr=expr, body=body):
                 shad = helper(expr, env)
-                return env | shad | helper(body, env | {name}) | set() if name not in env else {name}
+                return shad | helper(body, env | {name}) | (set() if name not in env else {name})
             case _:
                 raise UnknownStatementException(f"Unknown statement {e}")
 
@@ -111,10 +111,9 @@ if __name__ == "__main__":
                          Val("x", 
                              Num(1),
                              Add(Id("x"), Num(40)))
-                         )) == set("x")
+                         )) == set("x"), "set('x')"
     
-    assert \
-        shadowing(
+    assert shadowing(
             Val("x",
                 Val("y",
                     Val("z",
@@ -127,5 +126,5 @@ if __name__ == "__main__":
                     Val("x", 
                         Num(5),
                         Add(Id("x"), Add(Num(8), Id("y"))))),
-                Add(Id("x"), Num(5)))) == {"x", "y", "z"}
+                Add(Id("x"), Num(5)))) == {"z"}
          
