@@ -161,7 +161,7 @@ def interp(expr : Expression, env: Env) -> Value:
                     raise NotNumExpression("if0 {cond} {env} doesn't return a NumV value")
         case Rec(f=f, par_name=par_name, body=body):
             cloV = CloV(par_name, body, env)
-            nenv = dict(env, **{f : cloV})
+            nenv = env | {f : cloV}
             cloV.env = nenv
             return interp(expr, nenv)
     
