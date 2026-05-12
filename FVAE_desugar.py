@@ -233,34 +233,32 @@ def desugar(e : Expression) -> Expression:
         case Second(e=e):
             return App(desugar(e), Fun("x", Fun("y", Id("y"))))
         case Pair(f=f, s=s):
-            return App(
-                        App(Fun("f",
-                                Fun("s",
-                                    Fun("eval",
-                                        App(
-                                            App(Id("eval"),
-                                                Id("f")),
-                                            Id("s"))))),
-                            desugar(f)),
-                        desugar(s))
+            return Fun("g", 
+                       App(
+                           App(Id("g"), 
+                               desugar(f)),
+                            desugar(s)
+                       )
+                    )
         case _:
             raise DesugarError(f"Unknown expression {e}")
 
-# test section
-assert interp(Num(10), {}).n  == 10
-assert interp(Add(Num(10), Num(20)), {}).n == 30
-assert interp(Sub(Num(10), Num(20)), {}).n == -10
-assert interp(Add(Num(0), Num(3)), {}).n == 3
+if __name__ == "__main__":
+    # test section
+    assert interp(Num(10), {}).n  == 10
+    assert interp(Add(Num(10), Num(20)), {}).n == 30
+    assert interp(Sub(Num(10), Num(20)), {}).n == -10
+    assert interp(Add(Num(0), Num(3)), {}).n == 3
 
-assert interp(Val("x",Num(1), Id("x")), {}).n == 1
-assert interp(Val("x",Num(1), Add(Id("x"), Id("x"))), {}).n == 2
-assert interp(Val("x",Num(1),
-                  Add(
-                      Val("x",Num(4),Add(Id("x"), Num(5))),
-                      Id("x"))), 
-                    {}).n  == 10
+    assert interp(Val("x",Num(1), Id("x")), {}).n == 1
+    assert interp(Val("x",Num(1), Add(Id("x"), Id("x"))), {}).n == 2
+    assert interp(Val("x",Num(1),
+                    Add(
+                        Val("x",Num(4),Add(Id("x"), Num(5))),
+                        Id("x"))), 
+                        {}).n  == 10
 
-assert interp(App(Fun("x", Add(Id("x"), Num(10))), Num(5)), {}).n == 15 
+    assert interp(App(Fun("x", Add(Id("x"), Num(10))), Num(5)), {}).n == 15 
 
-assert interp(First(Pair(Num(1), Num(2))), {}).n == 1
-assert interp(Second(Pair(Num(1), Num(2))), {}).n == 2
+    assert interp(First(Pair(Num(1), Num(2))), {}).n == 1
+    assert interp(Second(Pair(Num(1), Num(2))), {}).n == 2
